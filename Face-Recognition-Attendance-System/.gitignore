@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments (IMPORTANT for conda)
+env/
+venv/
+face_attendance/
+*.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Mac system files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+# Data files (optional - if large, better ignore)
+TrainingImage/
+TrainingImageLabel/
+
+# CSV (optional if dynamic)
+# StudentDetails/*.csv
+
+# Anaconda
+conda-meta/
