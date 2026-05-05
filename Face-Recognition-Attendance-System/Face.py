@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import *
+from tkinter import ttk, messagebox
 import cv2
 import csv
 import os
@@ -8,13 +9,31 @@ from PIL import Image, ImageTk
 import pandas as pd
 import datetime
 import time
+# ── Dark Theme Palette ────────────────────────────────────────────────────────
+BG      = "#0d1117"
+CARD    = "#161b22"
+BORDER  = "#30363d"
+ACCENT  = "#238636"
+BLUE    = "#1f6feb"
+RED     = "#da3633"
+YELLOW  = "#e3b341"
+TEXT    = "#e6edf3"
+SUBTEXT = "#8b949e"
+ENTRY_C = "#21262d"
+HOV_G   = "#2ea043"
+HOV_B   = "#388bfd"
+HOV_R   = "#f85149"
 
-# Window is our Main frame of system
+def _hover(btn, on_color, off_color):
+    btn.bind("<Enter>", lambda e: btn.configure(bg=on_color))
+    btn.bind("<Leave>", lambda e: btn.configure(bg=off_color))
+
+# ── Main Window ───────────────────────────────────────────────────────────────
 window = tk.Tk()
-window.title("FAMS - Face Recognition Based Attendance Management System | Siddharth Prajapati")
-
+window.title("FAMS - Face Recognition Attendance System | Siddharth Prajapati")
 window.geometry('1280x720')
-window.configure(background='grey80')
+window.configure(bg=BG)
+window.resizable(True, True)
 
 # GUI for manually fill attendance
 
@@ -317,7 +336,7 @@ def take_img():
                     sampleNum = sampleNum + 1
                     # saving the captured face in the dataset folder
                     cv2.imwrite("TrainingImage/" + Name + "." + Enrollment + '.' + str(sampleNum) + ".jpg", gray)
-                    print("Images Saved for Enrollment :")
+                    print(f"Images Saved for Enrollment : {Enrollment} | Sample: {sampleNum}")
                     cv2.imshow('Frame', img)
                 # wait for 100 miliseconds
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -329,7 +348,9 @@ def take_img():
 
 
             cam.release()
+            cv2.waitKey(1)
             cv2.destroyAllWindows()
+            cv2.waitKey(1)
             ts = time.time()
             Date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
             Time = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
@@ -348,274 +369,519 @@ def take_img():
             Notification.place(x=450, y=400)
 
 
+def _warn_popup(title, message):
+    """Show a dark-themed warning popup — no crash, no freeze."""
+    pop = tk.Toplevel(window)
+    pop.title(title)
+    pop.configure(bg=BG)
+    pop.resizable(False, False)
+    pop.grab_set()
+
+    hdr = tk.Frame(pop, bg=CARD, height=54,
+                   highlightbackground=BORDER, highlightthickness=1)
+    hdr.pack(fill="x"); hdr.pack_propagate(False)
+    tk.Label(hdr, text=title, bg=CARD, fg=YELLOW,
+             font=("Helvetica", 13, "bold")).place(x=14, y=14)
+
+    tk.Label(pop, text=message, bg=BG, fg=TEXT,
+             font=("Helvetica", 11), justify="center",
+             padx=30, pady=20).pack()
+
+    btn_f = tk.Frame(pop, bg=BLUE, cursor="hand2")
+    btn_f.pack(pady=(0, 18))
+    btn_l = tk.Label(btn_f, text="  OK  ", bg=BLUE, fg=TEXT,
+                     font=("Helvetica", 11, "bold"), padx=20, pady=8)
+    btn_l.pack()
+    for w in (btn_f, btn_l):
+        w.bind("<Enter>",    lambda e: [btn_f.configure(bg=HOV_B), btn_l.configure(bg=HOV_B)])
+        w.bind("<Leave>",    lambda e: [btn_f.configure(bg=BLUE),  btn_l.configure(bg=BLUE)])
+        w.bind("<Button-1>", lambda e: pop.destroy())
+    pop.bind("<Return>", lambda e: pop.destroy())
+
+
 # for choose subject and fill attendance
 def subjectchoose():
     def Fillattendances():
         sub = tx.get()
-        now = time.time()  # For calculate seconds of video
-        future = now + 20
-        if time.time() < future:
-            if sub == '':
-                err_screen1()
-            else:
-                recognizer = cv2.face.LBPHFaceRecognizer_create()  # cv2.createLBPHFaceRecognizer()
-                try:
-                    recognizer.read("TrainingImageLabel/Trainer.yml")
-                except:
-                    e = 'Model not found,Please train model'
-                    Notifica.configure(
-                        text=e, bg="red", fg="black", width=33, font=('times', 15, 'bold'))
-                    Notifica.place(x=20, y=250)
+        if sub == '':
+            err_screen1()
+            return
 
-                harcascadePath = "haarcascade_frontalface_default.xml"
-                faceCascade = cv2.CascadeClassifier(harcascadePath)
-                df = pd.read_csv("StudentDetails/StudentDetails.csv")
-                cam = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                col_names = ['Enrollment', 'Name', 'Date', 'Time']
-                attendance = pd.DataFrame(columns=col_names)
-                while True:
-                    ret, im = cam.read()
-                    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-                    faces = faceCascade.detectMultiScale(gray, 1.2, 5)
-                    for (x, y, w, h) in faces:
-                        global Id
+        # ── Pre-flight: check students are registered ─────────────────────────
+        csv_path = "StudentDetails/StudentDetails.csv"
+        if not os.path.isfile(csv_path) or os.path.getsize(csv_path) == 0:
+            _warn_popup("⚠️  No Students Registered",
+                        "Please register at least one student\nvia the Admin Panel before marking attendance.")
+            return
 
-                        Id, conf = recognizer.predict(gray[y:y + h, x:x + w])
-                        if (conf < 70):
-                            print(conf)
-                            global Subject
-                            global aa
-                            global date
-                            global timeStamp
-                            Subject = tx.get()
-                            ts = time.time()
-                            date = datetime.datetime.fromtimestamp(
-                                ts).strftime('%Y-%m-%d')
-                            timeStamp = datetime.datetime.fromtimestamp(
-                                ts).strftime('%H:%M:%S')
-                            aa = df.loc[df['Enrollment'] == Id]['Name'].values
-                            global tt
-                            tt = str(Id) + "-" + str(aa[0])
-                            En = '15624031' + str(Id)
-                            attendance.loc[len(attendance)] = [Id, aa[0], date, timeStamp]
-                            cv2.rectangle(
-                                im, (x, y), (x + w, y + h), (0, 260, 0), 7)
-                            cv2.putText(im, str(tt), (x + h, y),
-                                        font, 1, (255, 255, 0,), 4)
+        recognizer = cv2.face.LBPHFaceRecognizer_create()
+        try:
+            recognizer.read("TrainingImageLabel/Trainer.yml")
+        except:
+            _warn_popup("⚠️  Model Not Found",
+                        "No trained model found.\nGo to Admin Panel → Train Model first.")
+            return
 
-                        else:
-                            Id = 'Unknown'
-                            tt = str(Id)
-                            cv2.rectangle(
-                                im, (x, y), (x + w, y + h), (0, 25, 255), 7)
-                            cv2.putText(im, str(tt), (x + h, y),
-                                        font, 1, (0, 25, 255), 4)
-                    if time.time() > future:
-                        break
+        harcascadePath = "haarcascade_frontalface_default.xml"
+        faceCascade = cv2.CascadeClassifier(harcascadePath)
+        df = pd.read_csv(csv_path, names=['Enrollment', 'Name', 'Date', 'Time'])
 
-                    attendance = attendance.drop_duplicates(
-                        ['Enrollment'], keep='first')
-                    cv2.imshow('Filling attedance..', im)
-                    key = cv2.waitKey(30) & 0xff
-                    if key == 27:
-                        break
+        if df.empty:
+            _warn_popup("⚠️  No Students Registered",
+                        "Student list is empty.\nRegister students via Admin Panel first.")
+            return
 
-                ts = time.time()
-                date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
-                timeStamp = datetime.datetime.fromtimestamp(
-                    ts).strftime('%H:%M:%S')
-                Hour, Minute, Second = timeStamp.split(":")
-                fileName = "Attendance/" + Subject + "_" + date + \
-                    "_" + Hour + "-" + Minute + "-" + Second + ".csv"
-                attendance = attendance.drop_duplicates(
-                    ['Enrollment'], keep='first')
-                print(attendance)
-                attendance.to_csv(fileName, index=False)
+        cam = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        col_names = ['Enrollment', 'Name', 'Date', 'Time']
+        attendance = pd.DataFrame(columns=col_names)
 
-                # Create table for Attendance
-                date_for_DB = datetime.datetime.fromtimestamp(
-                    ts).strftime('%Y_%m_%d')
-                DB_Table_name = str(
-                    Subject + "_" + date_for_DB + "_Time_" + Hour + "_" + Minute + "_" + Second)
-                import pymysql.connections
+        # Timer starts AFTER camera + model are ready (true 3-second window)
+        now = time.time()
+        future = now + 3
 
-                # Connect to the database
-                try:
-                    global cursor
-                    connection = pymysql.connect(
-                        host='localhost', user='root', password='', db='Face_reco_fill')
-                    cursor = connection.cursor()
-                except Exception as e:
-                    print(e)
+        while True:
+            ret, im = cam.read()
+            gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+            faces = faceCascade.detectMultiScale(gray, 1.2, 5)
+            for (x, y, w, h) in faces:
+                global Id
+                Id, conf = recognizer.predict(gray[y:y + h, x:x + w])
+                if conf < 70:
+                    print(conf)
+                    global Subject
+                    global aa
+                    global date
+                    global timeStamp
+                    Subject = tx.get()
+                    ts = time.time()
+                    date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+                    timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+                    aa = df.loc[df['Enrollment'] == Id]['Name'].values
+                    global tt
+                    if len(aa) == 0:          # ID recognised but not in CSV
+                        Id = 'Unknown'
+                        tt = 'Unknown'
+                        cv2.rectangle(im, (x, y), (x + w, y + h), (0, 25, 255), 3)
+                        cv2.putText(im, tt, (x, y - 10), font, 0.8, (0, 25, 255), 2)
+                    else:
+                        tt = str(Id) + "-" + str(aa[0])
+                        attendance.loc[len(attendance)] = [Id, aa[0], date, timeStamp]
+                        cv2.rectangle(im, (x, y), (x + w, y + h), (0, 220, 80), 3)
+                        cv2.putText(im, str(tt), (x, y - 10), font, 0.8, (0, 255, 100), 2)
+                else:
+                    Id = 'Unknown'
+                    tt = str(Id)
+                    cv2.rectangle(im, (x, y), (x + w, y + h), (0, 25, 255), 3)
+                    cv2.putText(im, str(tt), (x, y - 10), font, 0.8, (0, 25, 255), 2)
 
-                sql = "CREATE TABLE " + DB_Table_name + """
-                (ID INT NOT NULL AUTO_INCREMENT,
-                 ENROLLMENT varchar(100) NOT NULL,
-                 NAME VARCHAR(50) NOT NULL,
-                 DATE VARCHAR(20) NOT NULL,
-                 TIME VARCHAR(20) NOT NULL,
-                     PRIMARY KEY (ID)
-                     );
-                """
-                # Now enter attendance in Database
-                insert_data = "INSERT INTO " + DB_Table_name + \
-                    " (ID,ENROLLMENT,NAME,DATE,TIME) VALUES (0, %s, %s, %s,%s)"
-                VALUES = (str(Id), str(aa[0]), str(date), str(timeStamp))
-                try:
-                    cursor.execute(sql)  # for create a table
-                    # For insert data into table
-                    cursor.execute(insert_data, VALUES)
-                except Exception as ex:
-                    print(ex)  #
+            if time.time() > future:
+                break
 
-                M = 'Attendance filled Successfully'
-                Notifica.configure(text=M, bg="Green", fg="white",
-                                   width=33, font=('times', 15, 'bold'))
-                Notifica.place(x=20, y=250)
+            attendance = attendance.drop_duplicates(['Enrollment'], keep='first')
+            cv2.imshow('Filling Attendance (3 sec) — press ESC to cancel', im)
+            key = cv2.waitKey(30) & 0xff
+            if key == 27:
+                break
 
-                cam.release()
-                cv2.destroyAllWindows()
+        # Force close the OpenCV window on macOS
+        cam.release()
+        cv2.waitKey(200)            # allow last frame to process
+        cv2.destroyAllWindows()
+        for _ in range(20):         # flush macOS event queue
+            cv2.waitKey(1)
 
-                import csv
-                import tkinter
-                root = tkinter.Tk()
-                root.title("Attendance of " + Subject)
-                root.configure(background='grey80')
-                cs =fileName
-                with open(cs, newline="") as file:
-                    reader = csv.reader(file)
-                    r = 0
+        attendance = attendance.drop_duplicates(['Enrollment'], keep='first')
+        ts = time.time()
+        date = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+        timeStamp = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+        Subject = tx.get()
 
-                    for col in reader:
-                        c = 0
-                        for row in col:
-                            # i've added some styling
-                            label = tkinter.Label(root, width=10, height=1, fg="black", font=('times', 15, ' bold '),
-                                                  bg="white", text=row, relief=tkinter.RIDGE)
-                            label.grid(row=r, column=c)
-                            c += 1
-                        r += 1
-                root.mainloop()
-                print(attendance)
+        # One file per subject — append if it already exists
+        fileName = "Attendance/" + Subject + ".csv"
+        file_exists = os.path.isfile(fileName)
+        attendance.to_csv(fileName, mode='a', header=not file_exists, index=False)
+        print(attendance)
 
-    # windo is frame for subject chooser
-    windo = tk.Tk()
-    # windo.iconbitmap('AMS.ico')
-    windo.title("Enter subject name...")
-    windo.geometry('580x320')
-    windo.configure(background='grey80')
-    Notifica = tk.Label(windo, text="Attendance filled Successfully", bg="Green", fg="white", width=33,
-                        height=2, font=('times', 15, 'bold'))
+        M = f"✅  Attendance saved — {len(attendance)} student(s) marked"
+        Notifica.configure(text=M, fg=ACCENT)
 
-    def Attf():
-        import subprocess
-        subprocess.Popen(["open", "Attendance"])
+        # Auto-close the sub-window
+        windo.after(800, windo.destroy)
 
-    attf = tk.Button(windo,  text="Check Sheets", command=Attf, fg="white", bg="black",
-                     width=12, height=1, activebackground="white", font=('times', 14, ' bold '))
-    attf.place(x=430, y=255)
+        # Show last 5 rows in a dark popup
+        _show_recent(fileName, Subject)
 
-    sub = tk.Label(windo, text="Enter Subject : ", width=15, height=2,
-                   fg="black", bg="grey", font=('times', 15, ' bold '))
-    sub.place(x=30, y=100)
+    def _show_recent(csv_path, subject_name):
+        """Show last 5 rows of the subject CSV in a dark styled popup."""
+        try:
+            df_all = pd.read_csv(csv_path)
+        except Exception:
+            return
 
-    tx = tk.Entry(windo, width=20, bg="white",
-                  fg="black", font=('times', 23))
-    tx.place(x=250, y=105)
+        recent = df_all.tail(5)
 
-    fill_a = tk.Button(windo, text="Fill Attendance", fg="white", command=Fillattendances, bg="SkyBlue1", width=20, height=2,
-                       activebackground="white", font=('times', 15, ' bold '))
-    fill_a.place(x=250, y=160)
+        pop = tk.Toplevel(window)
+        pop.title(f"Recent Attendance — {subject_name}")
+        pop.configure(bg=BG)
+        pop.resizable(False, False)
+
+        # Header
+        ph = tk.Frame(pop, bg=CARD, height=60,
+                      highlightbackground=BORDER, highlightthickness=1)
+        ph.pack(fill="x")
+        ph.pack_propagate(False)
+        tk.Label(ph, text=f"📄  {subject_name}  —  Last {len(recent)} Records",
+                 bg=CARD, fg=TEXT, font=("Helvetica", 13, "bold")).place(x=14, y=8)
+        tk.Label(ph, text=f"Total records in file: {len(df_all)}",
+                 bg=CARD, fg=SUBTEXT, font=("Helvetica", 9)).place(x=16, y=36)
+
+        tbl = tk.Frame(pop, bg=BG, padx=20, pady=16)
+        tbl.pack()
+
+        cols = list(recent.columns)
+        col_widths = [12, 18, 14, 12]
+
+        # Header row
+        for c, (col, w) in enumerate(zip(cols, col_widths)):
+            tk.Label(tbl, text=col.upper(), bg=CARD, fg=ACCENT,
+                     font=("Helvetica", 10, "bold"), width=w,
+                     relief="flat", pady=6,
+                     highlightbackground=BORDER, highlightthickness=1).grid(
+                row=0, column=c, padx=2, pady=(0, 2), sticky="ew")
+
+        # Data rows
+        for r, (_, row_data) in enumerate(recent.iterrows(), start=1):
+            row_bg = ENTRY_C if r % 2 == 0 else CARD
+            for c, (val, w) in enumerate(zip(row_data, col_widths)):
+                tk.Label(tbl, text=str(val), bg=row_bg, fg=TEXT,
+                         font=("Helvetica", 10), width=w, pady=5,
+                         relief="flat",
+                         highlightbackground=BORDER, highlightthickness=1).grid(
+                    row=r, column=c, padx=2, pady=1, sticky="ew")
+
+        # Close button
+        cf = tk.Frame(pop, bg="#6e40c9", cursor="hand2")
+        cf.pack(pady=(0, 16))
+        cl = tk.Label(cf, text="✕  Close", bg="#6e40c9", fg=TEXT,
+                      font=("Helvetica", 11, "bold"), padx=20, pady=8)
+        cl.pack()
+        for w in (cf, cl):
+            w.bind("<Enter>",    lambda e: [cf.configure(bg="#8957e5"), cl.configure(bg="#8957e5")])
+            w.bind("<Leave>",    lambda e: [cf.configure(bg="#6e40c9"), cl.configure(bg="#6e40c9")])
+            w.bind("<Button-1>", lambda e: pop.destroy())
+
+    # ── Auto Attendance popup ─────────────────────────────────────────────────
+    windo = tk.Toplevel(window)
+    windo.title("Auto Attendance")
+    windo.geometry("500x380")
+    windo.configure(bg=BG)
+    windo.resizable(False, False)
+    windo.grab_set()
+
+    # Header
+    hdr = tk.Frame(windo, bg=CARD, height=64,
+                   highlightbackground=BORDER, highlightthickness=1)
+    hdr.pack(fill="x")
+    hdr.pack_propagate(False)
+    tk.Label(hdr, text="✅  Automatic Attendance",
+             bg=CARD, fg=TEXT, font=("Helvetica", 15, "bold")).place(x=16, y=10)
+    tk.Label(hdr, text="Camera runs for 3 seconds and marks present students",
+             bg=CARD, fg=SUBTEXT, font=("Helvetica", 9)).place(x=18, y=38)
+
+    # Card body
+    body_f = tk.Frame(windo, bg=BG)
+    body_f.pack(fill="both", expand=True, padx=24, pady=20)
+
+    # Subject label + entry
+    tk.Label(body_f, text="Subject Name", bg=BG, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w")
+    tx = tk.Entry(body_f, width=36,
+                  bg=ENTRY_C, fg=TEXT, insertbackground=TEXT,
+                  font=("Helvetica", 14), relief="flat",
+                  highlightbackground=BORDER, highlightthickness=1)
+    tx.pack(fill="x", pady=(4, 16), ipady=8)
+    tx.focus()
+
+    # Status label
+    Notifica = tk.Label(body_f, text="", bg=BG, fg=SUBTEXT,
+                        font=("Helvetica", 10), wraplength=440, justify="left")
+    Notifica.pack(anchor="w", pady=(0, 12))
+
+    tk.Frame(body_f, bg=BORDER, height=1).pack(fill="x", pady=(0, 16))
+
+    # Buttons row — Frame+Label for macOS color support
+    btn_row = tk.Frame(body_f, bg=BG)
+    btn_row.pack(fill="x")
+
+    def _sub_btn(parent, icon, text, cmd, bg_c, hov_c):
+        outer = tk.Frame(parent, bg=bg_c, cursor="hand2")
+        outer.pack(side="left", padx=(0, 10))
+        inner = tk.Label(outer, text=f"{icon}  {text}", bg=bg_c, fg=TEXT,
+                         font=("Helvetica", 11, "bold"), padx=16, pady=10)
+        inner.pack()
+        def _e(e): outer.configure(bg=hov_c); inner.configure(bg=hov_c)
+        def _l(e): outer.configure(bg=bg_c);  inner.configure(bg=bg_c)
+        for w in (outer, inner):
+            w.bind("<Enter>", _e); w.bind("<Leave>", _l)
+            w.bind("<Button-1>", lambda e: cmd())
+
+    _sub_btn(btn_row, "▶", "Start Attendance (3 sec)",
+             Fillattendances, "#6e40c9", "#8957e5")
+
+    def _view_recent():
+        sub = tx.get().strip()
+        if not sub:
+            return
+        path = "Attendance/" + sub + ".csv"
+        if not os.path.isfile(path):
+            Notifica.configure(text=f"No file found for '{sub}' yet.", fg=YELLOW)
+            return
+        _show_recent(path, sub)
+
+    _sub_btn(btn_row, "📂", "View Sheets", _view_recent, ENTRY_C, "#3d444d")
+
     windo.mainloop()
 
 
 def admin_panel():
-    win = tk.Tk()
-    # win.iconbitmap('AMS.ico')
-    win.title("Admin Login — Siddharth Prajapati")
-    win.geometry('880x420')
-    win.configure(background='grey80')
+    # ── Login screen ──────────────────────────────────────────────────────────
+    login = tk.Toplevel(window)
+    login.title("Admin Login")
+    login.geometry("460x380")
+    login.configure(bg=BG)
+    login.resizable(False, False)
+    login.grab_set()
 
-    def log_in():
-        username = un_entr.get()
-        password = pw_entr.get()
+    lhdr = tk.Frame(login, bg=CARD, height=70,
+                    highlightbackground=BORDER, highlightthickness=1)
+    lhdr.pack(fill="x"); lhdr.pack_propagate(False)
+    tk.Label(lhdr, text="🔐  Admin Login", bg=CARD, fg=TEXT,
+             font=("Helvetica", 15, "bold")).place(x=16, y=10)
+    tk.Label(lhdr, text="Siddharth Prajapati  •  Restricted Access",
+             bg=CARD, fg=SUBTEXT, font=("Helvetica", 9)).place(x=18, y=42)
 
-        if username == 'Siddharth Prajapati':
-            if password == 'Siddhi@2305':
-                win.destroy()
-                import csv
-                import tkinter
-                root = tkinter.Tk()
-                root.title("Student Details — Siddharth Prajapati")
-                root.configure(background='grey80')
+    lfrm = tk.Frame(login, bg=BG, padx=32, pady=20)
+    lfrm.pack(fill="both", expand=True)
+    err_lbl = tk.Label(lfrm, text="", bg=BG, fg=RED,
+                       font=("Helvetica", 10, "bold"))
+    err_lbl.pack(anchor="w", pady=(0, 8))
+    tk.Label(lfrm, text="Username", bg=BG, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w")
+    un_e = tk.Entry(lfrm, bg=ENTRY_C, fg=TEXT, insertbackground=TEXT,
+                    font=("Helvetica", 13), relief="flat",
+                    highlightbackground=BORDER, highlightthickness=1)
+    un_e.pack(fill="x", pady=(4, 12), ipady=8); un_e.focus()
+    tk.Label(lfrm, text="Password", bg=BG, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w")
+    pw_e = tk.Entry(lfrm, show="●", bg=ENTRY_C, fg=TEXT,
+                    insertbackground=TEXT, font=("Helvetica", 13),
+                    relief="flat", highlightbackground=BORDER, highlightthickness=1)
+    pw_e.pack(fill="x", pady=(4, 20), ipady=8)
 
-                cs = 'StudentDetails/StudentDetails.csv'
-                with open(cs, newline="") as file:
-                    reader = csv.reader(file)
-                    r = 0
-
-                    for col in reader:
-                        c = 0
-                        for row in col:
-                            # i've added some styling
-                            label = tkinter.Label(root, width=10, height=1, fg="black", font=('times', 15, ' bold '),
-                                                  bg="white", text=row, relief=tkinter.RIDGE)
-                            label.grid(row=r, column=c)
-                            c += 1
-                        r += 1
-                root.mainloop()
-            else:
-                valid = 'Incorrect ID or Password'
-                Nt.configure(text=valid, bg="red", fg="white",
-                             width=38, font=('times', 19, 'bold'))
-                Nt.place(x=120, y=350)
-
+    def _open_dash(event=None):
+        if un_e.get().strip() == "Siddharth Prajapati" and \
+           pw_e.get().strip() == "Siddhi@2305":
+            login.destroy()
+            _admin_dashboard()
         else:
-            valid = 'Incorrect ID or Password'
-            Nt.configure(text=valid, bg="red", fg="white",
-                         width=38, font=('times', 19, 'bold'))
-            Nt.place(x=120, y=350)
+            err_lbl.configure(text="❌  Incorrect username or password")
+            pw_e.delete(0, END)
 
-    Nt = tk.Label(win, text="Login Successful — Welcome, Siddharth!", bg="Green", fg="white", width=40,
-                  height=2, font=('times', 19, 'bold'))
-    # Nt.place(x=120, y=350)
+    login.bind("<Return>", _open_dash)
+    br = tk.Frame(lfrm, bg=BG); br.pack(fill="x")
+    for icon, lbl, cmd, bg_c, hov_c in [
+        ("🔓", "Login",  _open_dash,    BLUE,      HOV_B),
+        ("✕",  "Cancel", login.destroy, "#3d444d", "#57606a"),
+    ]:
+        oo = tk.Frame(br, bg=bg_c, cursor="hand2"); oo.pack(side="left", padx=(0, 10))
+        ii = tk.Label(oo, text=f"{icon}  {lbl}", bg=bg_c, fg=TEXT,
+                      font=("Helvetica", 11, "bold"), padx=18, pady=10); ii.pack()
+        def _he(e, o=oo, i=ii, h=hov_c): o.configure(bg=h); i.configure(bg=h)
+        def _hl(e, o=oo, i=ii, b=bg_c):  o.configure(bg=b); i.configure(bg=b)
+        for w in (oo, ii):
+            w.bind("<Enter>", _he); w.bind("<Leave>", _hl)
+            w.bind("<Button-1>", lambda e, c=cmd: c())
+    login.mainloop()
 
-    un = tk.Label(win, text="Username : ", width=15, height=2, fg="black", bg="grey",
-                  font=('times', 15, ' bold '))
-    un.place(x=30, y=50)
 
-    pw = tk.Label(win, text="Enter password : ", width=15, height=2, fg="black", bg="grey",
-                  font=('times', 15, ' bold '))
-    pw.place(x=30, y=150)
+def _admin_dashboard():
+    """Admin control panel — opened after successful login."""
+    dash = tk.Toplevel(window)
+    dash.title("Admin Dashboard")
+    dash.geometry("940x640")
+    dash.configure(bg=BG)
+    dash.grab_set()
 
-    def c00():
-        un_entr.delete(first=0, last=22)
+    # Header
+    dh = tk.Frame(dash, bg=CARD, height=64,
+                  highlightbackground=BORDER, highlightthickness=1)
+    dh.pack(fill="x"); dh.pack_propagate(False)
+    tk.Label(dh, text="⚙️  Admin Dashboard", bg=CARD, fg=TEXT,
+             font=("Helvetica", 15, "bold")).place(x=16, y=10)
+    tk.Label(dh, text="Register students  •  Train model  •  Manage roster",
+             bg=CARD, fg=SUBTEXT, font=("Helvetica", 9)).place(x=18, y=38)
 
-    un_entr = tk.Entry(win, width=20, bg="white", fg="black",
-                       font=('times', 23))
-    un_entr.place(x=290, y=55)
+    db = tk.Frame(dash, bg=BG)
+    db.pack(fill="both", expand=True, padx=16, pady=14)
 
-    def c11():
-        pw_entr.delete(first=0, last=22)
+    # ── LEFT col: Register + Train ────────────────────────────────────────────
+    left = tk.Frame(db, bg=BG)
+    left.pack(side="left", fill="y", padx=(0, 14))
 
-    pw_entr = tk.Entry(win, width=20, show="*", bg="white",
-                       fg="black", font=('times', 23))
-    pw_entr.place(x=290, y=155)
+    rc = tk.Frame(left, bg=CARD, padx=20, pady=18,
+                  highlightbackground=BORDER, highlightthickness=1)
+    rc.pack(fill="x", pady=(0, 12))
+    tk.Label(rc, text="📸  Register New Student", bg=CARD, fg=TEXT,
+             font=("Helvetica", 13, "bold")).pack(anchor="w")
+    tk.Frame(rc, bg=BORDER, height=1).pack(fill="x", pady=(8, 14))
 
-    c0 = tk.Button(win, text="Clear", command=c00, fg="white", bg="black", width=10, height=1,
-                   activebackground="white", font=('times', 15, ' bold '))
-    c0.place(x=690, y=55)
+    def _val(P, d):
+        if d == '1' and not P.isdigit(): return False
+        return True
 
-    c1 = tk.Button(win, text="Clear", command=c11, fg="white", bg="black", width=10, height=1,
-                   activebackground="white", font=('times', 15, ' bold '))
-    c1.place(x=690, y=155)
+    tk.Label(rc, text="Enrollment Number", bg=CARD, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w")
+    enr_e = tk.Entry(rc, validate="key", bg=ENTRY_C, fg=TEXT,
+                     insertbackground=TEXT, font=("Helvetica", 13), relief="flat",
+                     highlightbackground=BORDER, highlightthickness=1, width=28)
+    enr_e['validatecommand'] = (enr_e.register(_val), '%P', '%d')
+    enr_e.pack(fill="x", pady=(4, 10), ipady=7)
+    tk.Label(rc, text="Student Name", bg=CARD, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w")
+    name_e = tk.Entry(rc, bg=ENTRY_C, fg=TEXT, insertbackground=TEXT,
+                      font=("Helvetica", 13), relief="flat",
+                      highlightbackground=BORDER, highlightthickness=1, width=28)
+    name_e.pack(fill="x", pady=(4, 12), ipady=7)
+    reg_st = tk.Label(rc, text="", bg=CARD, fg=ACCENT,
+                      font=("Helvetica", 9), wraplength=260)
+    reg_st.pack(anchor="w", pady=(0, 10))
 
-    Login = tk.Button(win, text="LogIn", fg="black", bg="SkyBlue1", width=20,
-                      height=2,
-                      activebackground="Red", command=log_in, font=('times', 15, ' bold '))
-    Login.place(x=290, y=250)
-    win.mainloop()
+    def _take():
+        enr = enr_e.get().strip(); nm = name_e.get().strip()
+        if not enr or not nm:
+            reg_st.configure(text="❌ Fill both fields.", fg=RED); return
+        txt.delete(0, END); txt.insert(0, enr)
+        txt2.delete(0, END); txt2.insert(0, nm)
+        reg_st.configure(text="📸 Camera opening…", fg=YELLOW); dash.update()
+        take_img()
+        reg_st.configure(text=f"✅ Saved for {nm}", fg=ACCENT)
+        enr_e.delete(0, END); name_e.delete(0, END)
+        _refresh()
+
+    cap_o = tk.Frame(rc, bg=ACCENT, cursor="hand2"); cap_o.pack(anchor="w")
+    cap_i = tk.Label(cap_o, text="📸  Capture Images", bg=ACCENT, fg=TEXT,
+                     font=("Helvetica", 11, "bold"), padx=14, pady=8); cap_i.pack()
+    for w in (cap_o, cap_i):
+        w.bind("<Enter>",    lambda e: [cap_o.configure(bg=HOV_G), cap_i.configure(bg=HOV_G)])
+        w.bind("<Leave>",    lambda e: [cap_o.configure(bg=ACCENT), cap_i.configure(bg=ACCENT)])
+        w.bind("<Button-1>", lambda e: _take())
+
+    tc = tk.Frame(left, bg=CARD, padx=20, pady=18,
+                  highlightbackground=BORDER, highlightthickness=1)
+    tc.pack(fill="x")
+    tk.Label(tc, text="🧠  Train Recognition Model", bg=CARD, fg=TEXT,
+             font=("Helvetica", 13, "bold")).pack(anchor="w")
+    tk.Frame(tc, bg=BORDER, height=1).pack(fill="x", pady=(8, 10))
+    tk.Label(tc, text="Run after adding new students.", bg=CARD, fg=SUBTEXT,
+             font=("Helvetica", 9)).pack(anchor="w", pady=(0, 10))
+    tr_st = tk.Label(tc, text="", bg=CARD, fg=ACCENT, font=("Helvetica", 9))
+    tr_st.pack(anchor="w", pady=(0, 10))
+
+    def _train():
+        tr_st.configure(text="🔄 Training…", fg=YELLOW); dash.update()
+        trainimg()
+        tr_st.configure(text="✅ Model trained!", fg=ACCENT)
+        _log("Admin retrained the model")
+
+    tr_o = tk.Frame(tc, bg=BLUE, cursor="hand2"); tr_o.pack(anchor="w")
+    tr_i = tk.Label(tr_o, text="🧠  Train Model", bg=BLUE, fg=TEXT,
+                    font=("Helvetica", 11, "bold"), padx=14, pady=8); tr_i.pack()
+    for w in (tr_o, tr_i):
+        w.bind("<Enter>",    lambda e: [tr_o.configure(bg=HOV_B), tr_i.configure(bg=HOV_B)])
+        w.bind("<Leave>",    lambda e: [tr_o.configure(bg=BLUE), tr_i.configure(bg=BLUE)])
+        w.bind("<Button-1>", lambda e: _train())
+
+    # ── RIGHT col: Student list with Remove ───────────────────────────────────
+    ra = tk.Frame(db, bg=CARD, padx=18, pady=16,
+                  highlightbackground=BORDER, highlightthickness=1)
+    ra.pack(side="left", fill="both", expand=True)
+    rh = tk.Frame(ra, bg=CARD); rh.pack(fill="x")
+    tk.Label(rh, text="👥  Registered Students", bg=CARD, fg=TEXT,
+             font=("Helvetica", 13, "bold")).pack(side="left")
+    cnt_lbl = tk.Label(rh, text="", bg=CARD, fg=SUBTEXT,
+                       font=("Helvetica", 9)); cnt_lbl.pack(side="right")
+    tk.Frame(ra, bg=BORDER, height=1).pack(fill="x", pady=(8, 0))
+
+    canv = tk.Canvas(ra, bg=CARD, highlightthickness=0)
+    vsb  = tk.Scrollbar(ra, orient="vertical", command=canv.yview)
+    sf   = tk.Frame(canv, bg=CARD)
+    sf.bind("<Configure>", lambda e: canv.configure(scrollregion=canv.bbox("all")))
+    canv.create_window((0, 0), window=sf, anchor="nw")
+    canv.configure(yscrollcommand=vsb.set)
+    canv.pack(side="left", fill="both", expand=True, pady=(8, 0))
+    vsb.pack(side="right", fill="y")
+
+    for c, (h, w) in enumerate(zip(
+            ["ENROLLMENT", "NAME", "REG. DATE", "REMOVE"], [13, 18, 14, 10])):
+        tk.Label(sf, text=h, bg=ENTRY_C, fg=ACCENT,
+                 font=("Helvetica", 9, "bold"), width=w, pady=5,
+                 relief="flat").grid(row=0, column=c, padx=1, pady=(0, 2), sticky="ew")
+
+    def _refresh():
+        for w in sf.winfo_children():
+            info = w.grid_info()
+            if info and int(info.get("row", 0)) > 0:
+                w.destroy()
+        try:
+            df_s = pd.read_csv("StudentDetails/StudentDetails.csv",
+                               names=["Enrollment", "Name", "Date", "Time"])
+        except Exception:
+            cnt_lbl.configure(text="No students yet"); return
+        cnt_lbl.configure(text=f"{len(df_s)} enrolled")
+        for r, (_, row) in enumerate(df_s.iterrows(), start=1):
+            rbg = ENTRY_C if r % 2 == 0 else CARD
+            enr_v = str(row["Enrollment"])
+            nm_v  = str(row["Name"])
+            dt_v  = str(row["Date"])
+            for c, (val, w) in enumerate(zip([enr_v, nm_v, dt_v], [13, 18, 14])):
+                tk.Label(sf, text=val, bg=rbg, fg=TEXT,
+                         font=("Helvetica", 10), width=w, pady=4,
+                         relief="flat").grid(row=r, column=c, padx=1, pady=1, sticky="ew")
+
+            def _del(enr=enr_v, nm=nm_v):
+                try:
+                    df_all = pd.read_csv("StudentDetails/StudentDetails.csv",
+                                         names=["Enrollment", "Name", "Date", "Time"])
+                    df_all = df_all[df_all["Enrollment"].astype(str) != enr]
+                    df_all.to_csv("StudentDetails/StudentDetails.csv",
+                                  index=False, header=False)
+                except Exception as ex:
+                    print(f"CSV error: {ex}")
+                deleted = 0
+                for img in os.listdir("TrainingImage"):
+                    parts = img.split(".")
+                    if len(parts) >= 3 and parts[1] == enr:
+                        try: os.remove(os.path.join("TrainingImage", img)); deleted += 1
+                        except Exception: pass
+                _log(f"Removed: {nm} [{enr}] — {deleted} images deleted")
+                _refresh()
+
+            rb_o = tk.Frame(sf, bg=RED, cursor="hand2")
+            rb_o.grid(row=r, column=3, padx=1, pady=1, sticky="ew")
+            rb_i = tk.Label(rb_o, text="✕ Remove", bg=RED, fg=TEXT,
+                            font=("Helvetica", 9, "bold"), padx=6, pady=4)
+            rb_i.pack()
+            for w in (rb_o, rb_i):
+                w.bind("<Enter>",    lambda e, o=rb_o, i=rb_i: [o.configure(bg=HOV_R), i.configure(bg=HOV_R)])
+                w.bind("<Leave>",    lambda e, o=rb_o, i=rb_i: [o.configure(bg=RED), i.configure(bg=RED)])
+                w.bind("<Button-1>", lambda e, fn=_del: fn())
+
+    _refresh()
+    dash.mainloop()
+
+
+
 
 
 # For train the model
@@ -672,78 +938,185 @@ def getImagesAndLabels(path):
     return faceSamples, Ids
 
 
-window.grid_rowconfigure(0, weight=1)
-window.grid_columnconfigure(0, weight=1)
-# window.iconbitmap('AMS.ico')
-
-
+# ── Quit Handler ──────────────────────────────────────────────────────────────
 def on_closing():
-    from tkinter import messagebox
-    if messagebox.askokcancel("Quit", "Do you want to quit?"):
+    if messagebox.askokcancel("Quit", "Do you want to quit FAMS?"):
         window.destroy()
-
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
 
-message = tk.Label(window, text="Face Recognition Attendance System", bg="black", fg="white", width=50,
-                   height=3, font=('times', 30, ' bold '))
+# ══════════════════════════════════════════════════════════════════════════════
+#  HEADER BAR
+# ══════════════════════════════════════════════════════════════════════════════
+header = tk.Frame(window, bg=CARD, height=72,
+                  highlightbackground=BORDER, highlightthickness=1)
+header.pack(fill="x")
+header.pack_propagate(False)
 
-message.place(x=80, y=20)
+tk.Label(header, text="🎓", bg=CARD, fg=TEXT,
+         font=("Helvetica", 28)).place(x=18, y=14)
+tk.Label(header, text="Face Recognition Attendance System",
+         bg=CARD, fg=TEXT, font=("Helvetica", 18, "bold")).place(x=68, y=10)
+tk.Label(header, text="AI-Powered  •  Siddharth Prajapati",
+         bg=CARD, fg=SUBTEXT, font=("Helvetica", 10)).place(x=70, y=42)
 
-Notification = tk.Label(window, text="All things good", bg="Green", fg="white", width=15,
-                        height=3, font=('times', 17))
+clock_lbl = tk.Label(header, bg=CARD, fg=SUBTEXT, font=("Helvetica", 11))
+clock_lbl.place(relx=1.0, x=-20, rely=0.5, anchor="e")
+def _tick():
+    clock_lbl.configure(
+        text=datetime.datetime.now().strftime("%a, %d %b %Y   %I:%M:%S %p"))
+    window.after(1000, _tick)
+_tick()
 
-lbl = tk.Label(window, text="Enter Enrollment : ", width=20, height=2,
-               fg="black", bg="grey", font=('times', 15, 'bold'))
-lbl.place(x=200, y=200)
+# ══════════════════════════════════════════════════════════════════════════════
+#  MAIN BODY  (left card + right panel)
+# ══════════════════════════════════════════════════════════════════════════════
+body = tk.Frame(window, bg=BG)
+body.pack(fill="both", expand=True, padx=20, pady=14)
 
+# ── LEFT CARD: Today info ────────────────────────────────────────────────────
+left_card = tk.Frame(body, bg=CARD, padx=26, pady=22,
+                     highlightbackground=BORDER, highlightthickness=1)
+left_card.pack(side="left", fill="y")
 
-def testVal(inStr, acttyp):
-    if acttyp == '1':  # insert
-        if not inStr.isdigit():
-            return False
-    return True
+tk.Label(left_card, text="📅  Today's Session",
+         bg=CARD, fg=TEXT, font=("Helvetica", 14, "bold")).pack(anchor="w")
+tk.Frame(left_card, bg=BORDER, height=1).pack(fill="x", pady=(8, 18))
 
+tk.Label(left_card, text=datetime.date.today().strftime("%A"),
+         bg=CARD, fg=ACCENT, font=("Helvetica", 22, "bold")).pack(anchor="w")
+tk.Label(left_card, text=datetime.date.today().strftime("%d %B %Y"),
+         bg=CARD, fg=TEXT, font=("Helvetica", 13)).pack(anchor="w", pady=(0, 20))
 
-txt = tk.Entry(window, validate="key", width=20, bg="white",
-               fg="black", font=('times', 25))
-txt['validatecommand'] = (txt.register(testVal), '%P', '%d')
-txt.place(x=550, y=210)
+tk.Frame(left_card, bg=BORDER, height=1).pack(fill="x", pady=(0, 18))
 
-lbl2 = tk.Label(window, text="Enter Name : ", width=20, fg="black",
-                bg="grey", height=2, font=('times', 15, ' bold '))
-lbl2.place(x=200, y=300)
+tk.Label(left_card, text="How to use",
+         bg=CARD, fg=SUBTEXT, font=("Helvetica", 9, "bold")).pack(anchor="w")
+for step in [
+    "1️⃣  Click Auto Attendance",
+    "2️⃣  Enter subject name",
+    "3️⃣  Look at the camera (3 sec)",
+    "4️⃣  Attendance saved automatically",
+]:
+    tk.Label(left_card, text=step, bg=CARD, fg=TEXT,
+             font=("Helvetica", 10), justify="left").pack(anchor="w", pady=2)
 
-txt2 = tk.Entry(window, width=20, bg="white",
-                fg="black", font=('times', 25))
-txt2.place(x=550, y=310)
+tk.Frame(left_card, bg=BORDER, height=1).pack(fill="x", pady=(18, 10))
+tk.Label(left_card, text="🔐  Admin access for registration",
+         bg=CARD, fg=SUBTEXT, font=("Helvetica", 9),
+         wraplength=200, justify="left").pack(anchor="w")
 
-clearButton = tk.Button(window, text="Clear", command=clear, fg="white", bg="black",
-                        width=10, height=1, activebackground="white", font=('times', 15, ' bold '))
-clearButton.place(x=950, y=210)
+# Dummy txt/txt2/Notification so core functions don't break
+txt  = tk.Entry(left_card); txt.pack_forget()
+txt2 = tk.Entry(left_card); txt2.pack_forget()
+Notification = tk.Label(left_card, text="", bg=CARD, fg=ACCENT,
+                        font=("Helvetica", 10), wraplength=220)
+Notification.pack(anchor="w", pady=(8, 0))
 
-clearButton1 = tk.Button(window, text="Clear", command=clear1, fg="white", bg="black",
-                         width=10, height=1, activebackground="white", font=('times', 15, ' bold '))
-clearButton1.place(x=950, y=310)
+def clear():  txt.delete(0, END)
+def clear1(): txt2.delete(0, END)
 
-AP = tk.Button(window, text="Check Registered students", command=admin_panel, fg="black",
-               bg="SkyBlue1", width=19, height=1, activebackground="white", font=('times', 15, ' bold '))
-AP.place(x=990, y=410)
+# ── RIGHT PANEL ───────────────────────────────────────────────────────────────
+right = tk.Frame(body, bg=BG)
+right.pack(side="left", fill="both", expand=True, padx=(16, 0))
 
-takeImg = tk.Button(window, text="Take Images", command=take_img, fg="black", bg="SkyBlue1",
-                    width=20, height=3, activebackground="white", font=('times', 15, ' bold '))
-takeImg.place(x=90, y=500)
+# Stat cards row
+stats_row = tk.Frame(right, bg=BG)
+stats_row.pack(fill="x", pady=(0, 12))
 
-trainImg = tk.Button(window, text="Train Images", fg="black", command=trainimg, bg="SkyBlue1",
-                     width=20, height=3, activebackground="white", font=('times', 15, ' bold '))
-trainImg.place(x=390, y=500)
+def stat_card(parent, icon, val, lbl, color):
+    f = tk.Frame(parent, bg=CARD, padx=18, pady=12,
+                 highlightbackground=BORDER, highlightthickness=1)
+    f.pack(side="left", expand=True, fill="both", padx=(0, 10))
+    tk.Label(f, text=icon, bg=CARD, fg=color, font=("Helvetica", 22)).pack()
+    tk.Label(f, text=val,  bg=CARD, fg=TEXT,  font=("Helvetica", 20, "bold")).pack()
+    tk.Label(f, text=lbl,  bg=CARD, fg=SUBTEXT, font=("Helvetica", 9)).pack()
 
-FA = tk.Button(window, text="Automatic Attendance", fg="black", command=subjectchoose,
-               bg="SkyBlue1", width=20, height=3, activebackground="white", font=('times', 15, ' bold '))
-FA.place(x=690, y=500)
+try:
+    with open("StudentDetails/StudentDetails.csv") as _f:
+        _count = sum(1 for _ in _f)
+except Exception:
+    _count = 0
 
-quitWindow = tk.Button(window, text="Manually Fill Attendance", command=manually_fill, fg="black",
-                       bg="SkyBlue1", width=20, height=3, activebackground="white", font=('times', 15, ' bold '))
-quitWindow.place(x=990, y=500)
+stat_card(stats_row, "👥", str(_count), "Registered Students", BLUE)
+stat_card(stats_row, "📅", datetime.date.today().strftime("%d %b"), "Today", ACCENT)
+stat_card(stats_row, "⚡", "3 sec", "Recognition Window", YELLOW)
+
+# Log card
+log_card = tk.Frame(right, bg=CARD, padx=18, pady=14,
+                    highlightbackground=BORDER, highlightthickness=1)
+log_card.pack(fill="both", expand=True)
+tk.Label(log_card, text="📊  System Log",
+         bg=CARD, fg=TEXT, font=("Helvetica", 13, "bold")).pack(anchor="w")
+tk.Frame(log_card, bg=BORDER, height=1).pack(fill="x", pady=(6, 10))
+
+log_box = tk.Text(log_card, bg=ENTRY_C, fg=TEXT, font=("Courier", 10),
+                  height=8, relief="flat", state="disabled",
+                  insertbackground=TEXT, wrap="word",
+                  highlightbackground=BORDER, highlightthickness=1)
+log_box.pack(fill="both", expand=True)
+
+def _log(msg):
+    log_box.configure(state="normal")
+    ts = datetime.datetime.now().strftime("%H:%M:%S")
+    log_box.insert("end", f"[{ts}]  {msg}\n")
+    log_box.see("end")
+    log_box.configure(state="disabled")
+
+_log("FAMS started. Ready.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  BOTTOM ACTION BAR
+# ══════════════════════════════════════════════════════════════════════════════
+btn_bar = tk.Frame(window, bg=CARD, height=88,
+                   highlightbackground=BORDER, highlightthickness=1)
+btn_bar.pack(fill="x", side="bottom")
+btn_bar.pack_propagate(False)
+
+btn_inner = tk.Frame(btn_bar, bg=CARD)
+btn_inner.place(relx=0.5, rely=0.5, anchor="center")
+
+# macOS-compatible colored button using Frame + Label
+def _make_action_btn(parent, icon, label, cmd, bg_color, hov_color):
+    outer = tk.Frame(parent, bg=bg_color, padx=2, pady=2)
+    outer.pack(side="left", padx=8)
+
+    inner = tk.Frame(outer, bg=bg_color, cursor="hand2")
+    inner.pack()
+
+    lbl_icon = tk.Label(inner, text=icon, bg=bg_color, fg=TEXT,
+                        font=("Helvetica", 18))
+    lbl_icon.pack(pady=(8, 0))
+
+    lbl_text = tk.Label(inner, text=label, bg=bg_color, fg=TEXT,
+                        font=("Helvetica", 11, "bold"),
+                        width=18, pady=6)
+    lbl_text.pack()
+
+    def on_enter(e):
+        outer.configure(bg=hov_color)
+        inner.configure(bg=hov_color)
+        lbl_icon.configure(bg=hov_color)
+        lbl_text.configure(bg=hov_color)
+
+    def on_leave(e):
+        outer.configure(bg=bg_color)
+        inner.configure(bg=bg_color)
+        lbl_icon.configure(bg=bg_color)
+        lbl_text.configure(bg=bg_color)
+
+    def on_click(e):
+        cmd()
+
+    for w in (outer, inner, lbl_icon, lbl_text):
+        w.bind("<Enter>",   on_enter)
+        w.bind("<Leave>",   on_leave)
+        w.bind("<Button-1>", on_click)
+
+    return outer
+
+_make_action_btn(btn_inner, "✅", "Auto Attendance",    subjectchoose, "#6e40c9", "#8957e5")
+_make_action_btn(btn_inner, "✏️",  "Manual Attendance", manually_fill, "#9e6a03", "#d29922")
+_make_action_btn(btn_inner, "🔐", "Admin Panel",        admin_panel,   "#3d444d", "#57606a")
 
 window.mainloop()
