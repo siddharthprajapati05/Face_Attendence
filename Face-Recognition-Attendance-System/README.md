@@ -83,7 +83,7 @@ pip install pymysql
 Make sure the environment is activated.
 
 ```bash
-python AMS_Run.py
+python Face.py
 ```
 
 The GUI will open.
@@ -121,7 +121,7 @@ Every time you want to run the project:
 ```bash
 conda activate face_attendance
 cd ~/Desktop/attendence/Face-Recognition-Attendance-System
-python AMS_Run.py
+python Face.py
 ```
 
 After finishing:
@@ -137,7 +137,7 @@ conda deactivate
 ```
 Face-Recognition-Attendance-System
 │
-├── AMS_Run.py
+├── Face.py
 ├── haarcascade_frontalface_default.xml
 │
 ├── TrainingImage
@@ -233,6 +233,8 @@ Attendance/AI_2026-03-14_10-25-34.csv
 # 👨‍💻 Author
 
 **Siddharth Prajapati**
+
+> Admin Login credentials are stored securely in the source code. Contact the author for access.
 
 ---
 

@@ -11,7 +11,7 @@ import time
 
 # Window is our Main frame of system
 window = tk.Tk()
-window.title("FAMS-Face Recognition Based Attendance Management System")
+window.title("FAMS - Face Recognition Based Attendance Management System | Siddharth Prajapati")
 
 window.geometry('1280x720')
 window.configure(background='grey80')
@@ -533,7 +533,7 @@ def subjectchoose():
 def admin_panel():
     win = tk.Tk()
     # win.iconbitmap('AMS.ico')
-    win.title("LogIn")
+    win.title("Admin Login — Siddharth Prajapati")
     win.geometry('880x420')
     win.configure(background='grey80')
 
@@ -541,13 +541,13 @@ def admin_panel():
         username = un_entr.get()
         password = pw_entr.get()
 
-        if username == 'pragya':
-            if password == 'pragya123':
+        if username == 'Siddharth Prajapati':
+            if password == 'Siddhi@2305':
                 win.destroy()
                 import csv
                 import tkinter
                 root = tkinter.Tk()
-                root.title("Student Details")
+                root.title("Student Details — Siddharth Prajapati")
                 root.configure(background='grey80')
 
                 cs = 'StudentDetails/StudentDetails.csv'
@@ -577,11 +577,11 @@ def admin_panel():
                          width=38, font=('times', 19, 'bold'))
             Nt.place(x=120, y=350)
 
-    Nt = tk.Label(win, text="Attendance filled Successfully", bg="Green", fg="white", width=40,
+    Nt = tk.Label(win, text="Login Successful — Welcome, Siddharth!", bg="Green", fg="white", width=40,
                   height=2, font=('times', 19, 'bold'))
     # Nt.place(x=120, y=350)
 
-    un = tk.Label(win, text="Enter username : ", width=15, height=2, fg="black", bg="grey",
+    un = tk.Label(win, text="Username : ", width=15, height=2, fg="black", bg="grey",
                   font=('times', 15, ' bold '))
     un.place(x=30, y=50)
 
@@ -685,7 +685,7 @@ def on_closing():
 
 window.protocol("WM_DELETE_WINDOW", on_closing)
 
-message = tk.Label(window, text="Face-Recognition-Based-Attendance-Management-System", bg="black", fg="white", width=50,
+message = tk.Label(window, text="Face Recognition Attendance System", bg="black", fg="white", width=50,
                    height=3, font=('times', 30, ' bold '))
 
 message.place(x=80, y=20)
