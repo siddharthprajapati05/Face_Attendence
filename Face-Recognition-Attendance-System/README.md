@@ -163,7 +163,7 @@ The dark-themed GUI will launch automatically.
 1. Click **🔐 Admin Panel** in the main window
 2. Login with:
    - **Username:** `My name full name`
-   - **Password:** `password is nike name + dob of 💕 + me`
+   - **Password:** `password is nick-name + dob of 💕 + me` 
 3. In the Admin Dashboard:
    - Enter **Enrollment Number** and **Student Name**
    - Click **📸 Capture Images** → look at webcam (71 images captured)
