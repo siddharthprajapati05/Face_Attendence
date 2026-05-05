@@ -1,0 +1,18 @@
+# Admin credentials — NEVER commit this
+Face-Recognition-Attendance-System/admin_config.py
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Training data (large binary files)
+TrainingImage/
+TrainingImageLabel/
+
+# Attendance CSV files (contain student data)
+Attendance/
+StudentDetails/
+
+# macOS
+.DS_Store

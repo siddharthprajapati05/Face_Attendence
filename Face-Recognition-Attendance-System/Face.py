@@ -679,9 +679,15 @@ def admin_panel():
                     relief="flat", highlightbackground=BORDER, highlightthickness=1)
     pw_e.pack(fill="x", pady=(4, 20), ipady=8)
 
+    try:
+        from admin_config import ADMIN_USERNAME, ADMIN_PASSWORD
+    except ImportError:
+        ADMIN_USERNAME = "admin"
+        ADMIN_PASSWORD = "admin"
+
     def _open_dash(event=None):
-        if un_e.get().strip() == "Siddharth Prajapati" and \
-           pw_e.get().strip() == "Siddhi@2305":
+        if un_e.get().strip() == ADMIN_USERNAME and \
+           pw_e.get().strip() == ADMIN_PASSWORD:
             login.destroy()
             _admin_dashboard()
         else:
